@@ -1,0 +1,31 @@
+{
+  "name": "catfishing-cli",
+  "version": "1.0.0",
+  "description": "Play catfishing, the daily Wikipedia guessing game, in your terminal.",
+  "type": "module",
+  "bin": {
+    "catfishing": "./bin/catfishing.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": "./src/cli.js",
+  "scripts": {
+    "start": "node bin/catfishing.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "catfishing",
+    "wikipedia",
+    "game",
+    "cli",
+    "terminal"
+  ],
+  "license": "MIT"
+}
