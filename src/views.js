@@ -607,7 +607,12 @@ export function renderStats({ stats, recentRows, storeFile }) {
       : '';
 
   const statLines = [
-    kv('Days played', paint(C.cream, String(stats.played), { bold: true })),
+    kv(
+      'Days played',
+      `${paint(C.amber, String(stats.played), { bold: true })} ${faint(
+        stats.currentStreak === 1 ? 'day' : 'days',
+      )}`,
+    ),
     kv(
       'Current streak',
       `${paint(C.amber, String(stats.currentStreak), { bold: true })} ${faint(
@@ -616,7 +621,7 @@ export function renderStats({ stats, recentRows, storeFile }) {
     ),
     kv(
       'Best streak',
-      `${paint(C.cream, String(stats.bestStreak), { bold: true })} ${faint(
+      `${paint(C.amber, String(stats.bestStreak), { bold: true })} ${faint(
         stats.bestStreak === 1 ? 'day' : 'days',
       )}`,
     ),
