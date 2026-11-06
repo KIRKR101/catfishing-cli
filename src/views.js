@@ -454,7 +454,6 @@ export function renderSummary({ record, global, storeFile }) {
   lines.push('');
   lines.push(...sharePanel({ record, width }));
   lines.push('');
-  lines.push(faint(`saved to ${storeFile}`));
   lines.push('');
   lines.push(
     `${paint(C.emerald, 'next')}  ${key('catfishing archive')}  ${faint('·')}  ${key(
@@ -532,7 +531,6 @@ export function renderResult({ record, global, storeFile }) {
     );
   }
   lines.push('');
-  lines.push(faint(`saved to ${storeFile}`));
   return lines;
 }
 
