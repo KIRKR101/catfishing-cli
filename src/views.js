@@ -16,14 +16,12 @@ import {
   flow,
   gradient,
   gradientBar,
-  gradientRule,
   layout,
   link,
   paint,
   panelRaw,
   padEnd,
   padStart,
-  pill,
   rule,
   shade,
   truncate,
@@ -68,7 +66,7 @@ const boldCream = (text) => paint(C.cream, text, { bold: true });
 const boldAmber = (text) => paint(C.amber, text, { bold: true });
 const violet = (text) => paint(C.violet, text);
 const key = (text) => paint(C.cream, text, { bold: true });
-const section = (text) => `${paint(C.emerald, '▎')} ${boldCream(text)}`;
+const section = (text) => boldCream(text);
 
 export function scoreColor(score) {
   if (score >= MAX_SCORE) return C.emeraldSoft;
@@ -87,20 +85,23 @@ function verdictFor(score) {
   return 'tough day';
 }
 
-function masthead({ day, width, subtitle = 'the Wikipedia guessing game' }) {
+function masthead({ day, width, subtitle = null, tag = null }) {
   const title = gradient('catfishing', [C.emeraldSoft, C.emerald, C.amber], { bold: true });
   const left = `${paint(C.emerald, '🐈')}  ${title}`;
-  let right = '';
+
+  const right = [];
+  if (tag) right.push(faint(tag));
   if (day != null) {
-    right = `${faint('day')} ${pill(String(day), C.cream, C.emeraldDim)}  ${faint('·')}  ${muted(
-      formatDayDate(day),
-    )}`;
+    right.push(
+      `${faint('day')} ${paint(C.cream, String(day), { bold: true })}  ${faint('·')}  ${muted(
+        formatDayDate(day),
+      )}`,
+    );
   }
-  return [
-    align(left, right, width),
-    faint(subtitle),
-    gradientRule(width),
-  ];
+
+  const lines = [align(left, right.join(`  ${faint('·')}  `), width)];
+  if (subtitle) lines.push(faint(subtitle));
+  return lines;
 }
 
 function progressLine({ answers, total, score, width, current = null }) {
@@ -113,12 +114,12 @@ function progressLine({ answers, total, score, width, current = null }) {
 
   const answered = answers.filter((answer) => answer.result !== RESULT.NOT_SHOWN).length;
   const left = `${marks}  ${paint(C.cream, `${answered}/${total}`, { bold: true })}`;
-  const right = `${faint('score')} ${pill(formatScore(score), scoreColor(score))}`;
+  const right = `${faint('score')} ${paint(scoreColor(score), formatScore(score), { bold: true })}`;
   return align(left, right, width);
 }
 
 function categoryLines(article, width, flat) {
-  const inner = width - 6;
+  const inner = width - 8;
   const lines = [];
 
   if (!article.categories.length) {
@@ -164,7 +165,7 @@ function previewPanel(preview, width) {
   const extract = String(preview?.extract ?? '').replace(/\s+/g, ' ').trim();
   if (!extract) return [];
 
-  const inner = width - 6;
+  const inner = width - 8;
   let lines = wrap(extract, inner);
   if (lines.length > 6) {
     lines = lines.slice(0, 6);
@@ -208,14 +209,18 @@ export function renderQuestion({
   flat = false,
 }) {
   const { width } = layout();
-  const lines = masthead({ day, date, width });
+  const lines = masthead({
+    day,
+    width,
+    subtitle: 'the Wikipedia guessing game',
+  });
   lines.push('');
   lines.push(progressLine({ answers, total, score, width, current: index }));
   lines.push('');
   lines.push(
-    `${paint(C.emerald, '▸')} ${boldCream('Question')} ${paint(C.cream, String(index + 1), {
-      bold: true,
-    })} ${faint(`of ${total}`)}`,
+    `${boldCream('Question')} ${paint(C.emerald, String(index + 1), { bold: true })} ${faint(
+      `of ${total}`,
+    )}`,
   );
   lines.push(muted('Guess the article from its categories'));
   lines.push('');
@@ -232,7 +237,7 @@ export function renderQuestion({
 
   if (article.suggestedBy) {
     lines.push('');
-    lines.push(`  ${faint('suggested by')} ${violet(article.suggestedBy)}`);
+    lines.push(`${faint('suggested by')} ${violet(article.suggestedBy)}`);
   }
 
   lines.push('');
@@ -260,11 +265,9 @@ export function renderAnswer({
 
   const lines = [];
   const badgeColor = answer.result === RESULT.SKIPPED ? C.muted : color;
-  const badge = pill(
-    `${symbol} ${label}${answer.dym ? ' · did you mean' : ''}`,
-    C.ink,
-    badgeColor,
-  );
+  const badge = `${paint(badgeColor, symbol)} ${paint(badgeColor, label, { bold: true })}${
+    answer.dym ? faint(' · did you mean') : ''
+  }`;
   const points = pointsFor(answer);
   lines.push(
     align(
@@ -316,29 +319,38 @@ export function renderAnswer({
     if (played > 0) {
       parts.push(`${muted(played.toLocaleString('en-GB'))} ${faint('answers')}`);
     }
-    if (parts.length > 0) {
-      lines.push(
-        ...flow(
-          parts.map((text) => ({ text })),
-          width,
-          { separator: `  ${faint('·')}  ` },
-        ),
-      );
-    }
 
     const popular = Array.isArray(questionStats.popular)
       ? questionStats.popular.slice(0, 4)
       : [];
-    if (popular.length > 0) {
-      const popularLines = flow(
-        popular.map(([name, , count]) => ({ text: `${name} (${count})`, style: cream })),
-        Math.max(20, width - 10),
-        { separator: faint(' · ') },
-      );
-      for (const [lineIndex, line] of popularLines.entries()) {
-        lines.push(
-          lineIndex === 0 ? `${faint('popular')}  ${line}` : `         ${line}`,
+
+    if (parts.length > 0 || popular.length > 0) {
+      const popularLabel = 'most guessed';
+      lines.push('');
+      lines.push(section('How others guessed'));
+      lines.push('');
+
+      if (parts.length > 0) {
+        const rows = flow(parts.map((text) => ({ text })), Math.max(20, width - 4), {
+          separator: `  ${faint('·')}  `,
+        });
+        for (const row of rows) lines.push(`  ${row}`);
+      }
+
+      if (popular.length > 0) {
+        const rows = flow(
+          popular.map(([name, , count]) => ({ text: `${name} (${count})`, style: cream })),
+          Math.max(20, width - popularLabel.length - 6),
+          { separator: faint(' · ') },
         );
+        const indent = `  ${' '.repeat(popularLabel.length + 2)}`;
+        for (const [rowIndex, row] of rows.entries()) {
+          lines.push(
+            rowIndex === 0
+              ? `  ${faint(popularLabel)}  ${row}`
+              : `${indent}${row}`,
+          );
+        }
       }
     }
   }
@@ -346,12 +358,21 @@ export function renderAnswer({
   return lines;
 }
 
+function percentileFrom(score, buckets) {
+  const total = buckets.reduce((sum, count) => sum + count, 0);
+  if (!total) return null;
+  const index = Math.max(0, Math.min(buckets.length - 1, Math.round(score * 2)));
+  let below = 0;
+  for (let i = 0; i < index; i += 1) below += buckets[i];
+  return Math.max(0, Math.min(100, (100 * (below + 0.5 * buckets[index])) / total));
+}
+
 function scorePanel({ record, width, global, title = 'your result' }) {
   const answers = record.answers ?? [];
   const score = record.score ?? 0;
   const total = record.total ?? answers.length ?? MAX_SCORE;
   const color = scoreColor(score);
-  const inner = width - 6;
+  const inner = width - 8;
   const lines = [];
 
   const verdict = verdictFor(score);
@@ -393,21 +414,17 @@ function scorePanel({ record, width, global, title = 'your result' }) {
       ? percentileFrom(score, global.scores)
       : null;
   if (percentile != null) {
-    lines.push('');
-    const average =
-      Number.isFinite(Number(global.scoresMean)) && Number(global.scoresMean) > 0
-        ? `  ${faint('·')}  ${faint(`players average ${Number(global.scoresMean).toFixed(1)}`)}`
-        : '';
     const percentileText =
       percentile >= 99 && percentile < 100
         ? percentile.toFixed(1)
         : String(Math.round(percentile));
-    const summary = `${paint(C.violet, '◆')} ${muted(
-      `better than ${percentileText}% of players`,
-    )}${average}`;
-    for (const line of wrap(summary, inner)) {
-      lines.push(centre(line, inner));
-    }
+    const average =
+      Number.isFinite(Number(global.scoresMean)) && Number(global.scoresMean) > 0
+        ? faint(`players average ${Number(global.scoresMean).toFixed(1)}`)
+        : '';
+    const compared = muted(`better than ${percentileText}% of players`);
+    lines.push('');
+    lines.push(average ? align(compared, average, inner) : centre(compared, inner));
   }
 
   return panelRaw(lines, {
@@ -418,16 +435,7 @@ function scorePanel({ record, width, global, title = 'your result' }) {
   });
 }
 
-function percentileFrom(score, buckets) {
-  const total = buckets.reduce((sum, count) => sum + count, 0);
-  if (!total) return null;
-  const index = Math.max(0, Math.min(buckets.length - 1, Math.round(score * 2)));
-  let below = 0;
-  for (let i = 0; i < index; i += 1) below += buckets[i];
-  return Math.max(0, Math.min(100, (100 * (below + 0.5 * buckets[index])) / total));
-}
-
-function sharePanel({ record, width }) {
+function shareLines({ record, width }) {
   if (!record.answers || record.answers.length === 0) return [];
   const text = shareText({
     day: record.day,
@@ -437,22 +445,17 @@ function sharePanel({ record, width }) {
     closes: record.closes,
     setName: record.emojiSet,
   });
-  const lines = text.split('\n').flatMap((line) => wrap(line, width - 6));
-  return panelRaw(lines.map((line) => cream(line)), {
-    width,
-    title: 'share',
-    borderColor: C.amber,
-    titleColor: C.amberSoft,
-  });
+  const body = text.split('\n').flatMap((line) => wrap(line, width - 4));
+  return [section('Share'), '', ...body.map((line) => cream(line))];
 }
 
 export function renderSummary({ record, global, storeFile }) {
   const { width } = layout();
-  const lines = masthead({ day: record.day, width, subtitle: 'result' });
+  const lines = masthead({ day: record.day, width, tag: 'result' });
   lines.push('');
   lines.push(...scorePanel({ record, width, global, title: 'your result' }));
   lines.push('');
-  lines.push(...sharePanel({ record, width }));
+  lines.push(...shareLines({ record, width }));
   lines.push('');
   lines.push('');
   lines.push(
@@ -465,10 +468,10 @@ export function renderSummary({ record, global, storeFile }) {
 
 function tableHeader() {
   const head = (text) => paint(C.muted, text, { bold: true });
-  return `${padEnd(head('DAY'), 5)}${padEnd(head('DATE'), 17)}${padEnd(
+  return `${padEnd(head('DAY'), 5)}${padEnd(head('DATE'), 17)}${padStart(
     head('SCORE'),
     8,
-  )}${head('QUESTIONS')}`;
+  )}  ${head('QUESTIONS')}`;
 }
 
 function answerStrip(record) {
@@ -483,7 +486,7 @@ export function renderResult({ record, global, storeFile }) {
   const lines = masthead({
     day: record.day,
     width,
-    subtitle: record.completed ? 'saved result' : 'in progress',
+    tag: record.completed ? 'saved result' : 'in progress',
   });
   lines.push('');
   lines.push(...scorePanel({ record, width, global, title: 'your result' }));
@@ -502,14 +505,14 @@ export function renderResult({ record, global, storeFile }) {
       ? faint(`${Math.round(answer.correctRate)}% correct`)
       : '';
 
-    const left = `${paint(color, symbol)} ${faint(`${index + 1}.`)} ${boldCream(main)}${
-      note ? ` ${faint(`(${note})`)}` : ''
-    }`;
+    const left = `${paint(color, symbol)} ${faint(
+      `${String(index + 1).padStart(2, ' ')}.`,
+    )} ${boldCream(main)}${note ? ` ${faint(`(${note})`)}` : ''}`;
     lines.push(align(left, rate, width));
 
     if (answer.guess && (answer.result !== RESULT.CORRECT || answer.dym)) {
       lines.push(
-        `   ${faint('you guessed')} ${paint(
+        `      ${faint('you guessed')} ${paint(
           C.amberSoft,
           truncate(answer.guess, width - 18),
           { italic: true },
@@ -520,7 +523,7 @@ export function renderResult({ record, global, storeFile }) {
 
   lines.push('');
   if (record.completed) {
-    lines.push(...sharePanel({ record, width }));
+    lines.push(...shareLines({ record, width }));
   } else {
     lines.push(
       faint(
@@ -536,7 +539,7 @@ export function renderResult({ record, global, storeFile }) {
 
 export function renderArchive({ rows, summary, storeFile }) {
   const { width } = layout();
-  const lines = masthead({ width, subtitle: 'archive' });
+  const lines = masthead({ width, tag: 'archive' });
   lines.push('');
 
   if (rows.length === 0) {
@@ -559,15 +562,16 @@ export function renderArchive({ rows, summary, storeFile }) {
       questions = answerStrip(record);
     } else if (record) {
       const answered = record.answers?.length ?? 0;
-      scoreText = paint(C.amber, `${answered}/${record.total ?? 10}`);
+      scoreText = paint(C.amber, `${answered}/${record.total ?? 10}`, { bold: true });
       questions = (record.answers ?? [])
         .map((answer) => paint(COLOR[answer.result] ?? C.faint, SYMBOL[answer.result] ?? '·'))
         .join('');
     }
 
+    const dateText = record ? muted(date) : faint(date);
     lines.push(
       `${padEnd(day < MIN_DAY ? faint(String(day)) : paint(C.cream, String(day)), 5)}` +
-        `${padEnd(muted(date), 17)}${padEnd(scoreText, 8)}${questions}`,
+        `${padEnd(dateText, 17)}${padStart(scoreText, 8)}  ${questions}`,
     );
   }
 
@@ -587,7 +591,7 @@ export function renderArchive({ rows, summary, storeFile }) {
 
 export function renderStats({ stats, recentRows, storeFile }) {
   const { width } = layout();
-  const lines = masthead({ width, subtitle: 'stats' });
+  const lines = masthead({ width, tag: 'stats' });
   lines.push('');
 
   if (stats.played === 0) {
@@ -597,9 +601,20 @@ export function renderStats({ stats, recentRows, storeFile }) {
     return lines;
   }
 
-  const inner = width - 6;
+  const inner = width - 8;
+  const labelWidth = 17;
   const kv = (label, value) =>
-    align(faint(label), value, inner);
+    `${muted(label)}${' '.repeat(Math.max(1, labelWidth - visibleWidth(label)))}${value}`;
+
+  // label + value must fit the panel, or the row wraps and breaks the box.
+  const percentBar = Math.max(4, Math.min(10, inner - labelWidth - 11));
+  const percentCell = (percent, count, color) =>
+    `${paint(color, padStart(`${Math.round(percent)}%`, 4), { bold: true })} ${faint(
+      padStart(`(${count})`, 4),
+    )}  ${gradientBar(percent, 100, percentBar, {
+      from: shade(color, 0.35),
+      to: color,
+    })}`;
 
   const bestDay =
     stats.bestDays && stats.bestDays.length > 0
@@ -634,24 +649,8 @@ export function renderStats({ stats, recentRows, storeFile }) {
       )}${bestDay}`,
     ),
     '',
-    kv(
-      'Correct answers',
-      `${paint(C.emerald, `${Math.round(stats.correctPercent)}%`, { bold: true })} ${faint(
-        `(${stats.corrects})`,
-      )}  ${gradientBar(stats.correctPercent, 100, 10, {
-        from: shade(C.emerald, 0.35),
-        to: C.emerald,
-      })}`,
-    ),
-    kv(
-      'Close enough',
-      `${paint(C.amber, `${Math.round(stats.closePercent)}%`, { bold: true })} ${faint(
-        `(${stats.closes})`,
-      )}  ${gradientBar(stats.closePercent, 100, 10, {
-        from: shade(C.amber, 0.35),
-        to: C.amber,
-      })}`,
-    ),
+    kv('Correct answers', percentCell(stats.correctPercent, stats.corrects, C.emerald)),
+    kv('Close enough', percentCell(stats.closePercent, stats.closes, C.amber)),
   ];
 
   lines.push(
@@ -669,6 +668,7 @@ export function renderStats({ stats, recentRows, storeFile }) {
 
   const chart = [];
   const maxCount = Math.max(...stats.distribution, 1);
+  const countWidth = String(maxCount).length;
   for (let index = 0; index < stats.distribution.length; index += 1) {
     const count = stats.distribution[index];
     if (count === 0) continue;
@@ -680,7 +680,7 @@ export function renderStats({ stats, recentRows, storeFile }) {
       `${faint(label)}  ${gradientBar(count, maxCount, barWidth, {
         from: shade(color, 0.35),
         to: color,
-      })} ${faint(String(count))}`,
+      })} ${muted(padStart(String(count), countWidth))}`,
     );
   }
   lines.push(...chart);
@@ -707,10 +707,10 @@ function renderArchiveRows(rows) {
     const date = formatDayDate(day);
     const color = scoreColor(record.score);
     lines.push(
-      `${padEnd(paint(C.cream, String(day)), 5)}${padEnd(muted(date), 17)}${padEnd(
+      `${padEnd(paint(C.cream, String(day)), 5)}${padEnd(muted(date), 17)}${padStart(
         paint(color, formatScore(record.score), { bold: true }),
         8,
-      )}${answerStrip(record)}`,
+      )}  ${answerStrip(record)}`,
     );
   }
   return lines;
@@ -729,7 +729,7 @@ function helpRow(label, description, width, { column = 35, color = amber } = {})
 
 export function renderHelp() {
   const { width } = layout();
-  const lines = masthead({ width, subtitle: 'help' });
+  const lines = masthead({ width, tag: 'help' });
   lines.push('');
   lines.push(
     ...flow(
@@ -758,6 +758,7 @@ export function renderHelp() {
   lines.push(...helpRow('/skip', 'skip the question', width, { column: 14, color: key }));
   lines.push(...helpRow('/quit', 'save your progress and exit', width, { column: 14, color: key }));
   lines.push(...helpRow('c', 'after a wrong guess, mark it close enough', width, { column: 14, color: key }));
+  lines.push(...helpRow('/help', 'show the in-game commands', width, { column: 14, color: key }));
   lines.push('');
 
   lines.push(section('Options'));
@@ -780,9 +781,9 @@ export function renderHelp() {
         { text: `${amber('close enough')} = 0.5 points` },
         { text: `maximum ${MAX_SCORE}` },
       ],
-      width,
+      Math.max(20, width - 2),
       { separator: `  ${faint('·')}  ` },
-    ),
+    ).map((line) => `  ${line}`),
   );
   lines.push('');
   lines.push(

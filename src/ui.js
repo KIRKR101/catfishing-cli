@@ -190,12 +190,14 @@ export function truncate(text, target, ellipsis = '…') {
 }
 
 export function align(left, right, target) {
+  if (!right) return left;
   const leftWidth = visibleWidth(left);
   const rightWidth = visibleWidth(right);
   if (leftWidth + rightWidth + 1 <= target) {
-    return `${left}${' '.repeat(target - leftWidth - rightWidth)}${right}`;
+    const line = `${left}${' '.repeat(target - leftWidth - rightWidth)}${right}`;
+    return line.replace(/[ \t]+$/, '');
   }
-  return `${left}\n${padStart(right, target)}`;
+  return `${left}\n${padStart(right, target).replace(/[ \t]+$/, '')}`;
 }
 
 export function wrap(text, maxWidth) {
@@ -317,14 +319,16 @@ function topBorder(width, title, borderColor, titleColor) {
   )}`;
 }
 
-export function panelRaw(lines, { width, padding = 2, borderColor = C.emeraldDim, title, titleColor = C.emeraldSoft } = {}) {
+export function panelRaw(lines, { width, padding = 3, borderColor = C.emeraldDim, title, titleColor = C.emeraldSoft } = {}) {
   const safeWidth = Math.max(20, width);
   const inner = safeWidth - 2 - padding * 2;
   const output = [topBorder(safeWidth, title, borderColor, titleColor)];
   const left = paint(borderColor, '│');
   const gutter = ' '.repeat(padding);
   for (const line of lines) {
-    output.push(`${left}${gutter}${padEnd(line, inner)}${gutter}${left}`);
+    for (const part of String(line).split('\n')) {
+      output.push(`${left}${gutter}${padEnd(part, inner)}${gutter}${left}`);
+    }
   }
   output.push(paint(borderColor, `╰${'─'.repeat(safeWidth - 2)}╯`));
   return output;
@@ -338,5 +342,5 @@ export function layout() {
 
 export function indentLines(lines, spaces = 2) {
   const prefix = ' '.repeat(spaces);
-  return lines.map((line) => `${prefix}${line}`);
+  return lines.map((line) => (String(line).trim() ? `${prefix}${line}` : ''));
 }
